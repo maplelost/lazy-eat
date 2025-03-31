@@ -70,8 +70,14 @@ def thread_detect():
     # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # 优化帧率
     thread_cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # 设置编码格式
 
+    # fix opencv buffer dimension cause read img slow down
+    from opencv_ring_buffer import OpencvRingBuffer
+    opencv_ring_buffer = OpencvRingBuffer(thread_cam, ring_size=5)
+    opencv_ring_buffer.startcap()
+
     while True:
-        success, img = thread_cam.read()
+        # success, img = thread_cam.read()
+        success, img = opencv_ring_buffer.getnew()
 
         if my_detector is None:
             show_toast(
@@ -105,11 +111,7 @@ def thread_detect():
                     pass
 
     # 结束取图，释放资源
-    try:
-        thread_cam.release()
-        cv2.destroyAllWindows()
-    except:
-        pass
+    opencv_ring_buffer.stopcap()
 
 
 @app.get("/toggle_work")
