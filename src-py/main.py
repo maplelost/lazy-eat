@@ -66,9 +66,15 @@ def thread_init():
 
 
 def thread_detect():
+    from MyDetector import wCam, hCam
     thread_cam = cv2.VideoCapture(CONFIG.camera_index, cv2.CAP_DSHOW)
-    # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))  # 优化帧率
     thread_cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # 设置编码格式
+    thread_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    thread_cam.set(cv2.CAP_PROP_FPS, 30)
+    thread_cam.set(cv2.CAP_PROP_FRAME_WIDTH, wCam)
+    thread_cam.set(cv2.CAP_PROP_FRAME_HEIGHT, hCam)
+    thread_cam.set(cv2.CAP_PROP_AUTOFOCUS, 0)
+    thread_cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
 
     while True:
         success, img = thread_cam.read()
@@ -91,9 +97,9 @@ def thread_detect():
             all_hands, img = my_detector.findHands(img, draw=True)
             if all_hands:
                 my_detector.process(all_hands)
-                img = my_detector.draw_mouse_move_box(img)
-                cv2.imshow("Lazyeat Detect Window", img)
-                cv2.waitKey(1)
+            img = my_detector.draw_mouse_move_box(img)
+            cv2.imshow("Lazyeat Detect Window", img)
+            cv2.waitKey(1)
         else:
             all_hands = my_detector.findHands(img, draw=False)
             if all_hands:
