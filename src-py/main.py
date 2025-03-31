@@ -1,6 +1,7 @@
 import os
 import sys
 import threading
+import time
 
 import cv2
 import uvicorn
@@ -63,20 +64,38 @@ def get_all_cameras() -> dict:
 def thread_init():
     global my_detector
     my_detector = MyDetector(maxHands=2)
+    thread_display_img = threading.Thread(target=__thread_display_img, daemon=True)
+    thread_display_img.start()
+
+
+DISPLAY_IMG = None
+
+
+def __thread_display_img():
+    while True:
+        if CONFIG.show_detect_window:
+            if DISPLAY_IMG is not None:
+                cv2.imshow("Lazyeat Detect Window", DISPLAY_IMG)
+                cv2.waitKey(1)
+        else:
+            time.sleep(0.02)
+            try:
+                cv2.destroyAllWindows()
+            except:
+                pass
 
 
 def thread_detect():
     from MyDetector import wCam, hCam
     thread_cam = cv2.VideoCapture(CONFIG.camera_index, cv2.CAP_DSHOW)
     thread_cam.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # 设置编码格式
-    thread_cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-    thread_cam.set(cv2.CAP_PROP_FPS, 30)
     thread_cam.set(cv2.CAP_PROP_FRAME_WIDTH, wCam)
     thread_cam.set(cv2.CAP_PROP_FRAME_HEIGHT, hCam)
-    thread_cam.set(cv2.CAP_PROP_AUTOFOCUS, 0)
-    thread_cam.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)
 
+    count = 0
+    total_cost_time = 0
     while True:
+        catch_time = time.time()
         success, img = thread_cam.read()
 
         if my_detector is None:
@@ -98,8 +117,8 @@ def thread_detect():
             if all_hands:
                 my_detector.process(all_hands)
             img = my_detector.draw_mouse_move_box(img)
-            cv2.imshow("Lazyeat Detect Window", img)
-            cv2.waitKey(1)
+            global DISPLAY_IMG
+            DISPLAY_IMG = img
         else:
             all_hands = my_detector.findHands(img, draw=False)
             if all_hands:
@@ -109,13 +128,17 @@ def thread_detect():
                     cv2.destroyAllWindows()
                 except:
                     pass
+        count += 1
+        end_time = time.time()
+        total_cost_time += (end_time - catch_time) * 1000
+        if count % 100 == 0:
+            print(f"FPS: {1000 / (total_cost_time / count):.2f}")
+            print(f"每100帧平均耗时: {total_cost_time / count:.2f} ms")
+            total_cost_time = 0
+            count = 0
 
     # 结束取图，释放资源
-    try:
-        thread_cam.release()
-        cv2.destroyAllWindows()
-    except:
-        pass
+    thread_cam.release()
 
 
 @app.get("/toggle_work")

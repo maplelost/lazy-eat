@@ -1,3 +1,4 @@
+# https://github.com/Lucas-CX/GestureInteraction/blob/main/HandTrackingModule.py
 import cv2
 import mediapipe as mp
 import math
@@ -90,7 +91,6 @@ class HandDetector:
         # }
         #  ]
 
-
         if self.results.multi_hand_landmarks:
             for handType, handLms in zip(self.results.multi_handedness, self.results.multi_hand_landmarks):
                 myHand = {}
@@ -131,7 +131,7 @@ class HandDetector:
                                                self.mpHands.HAND_CONNECTIONS)
                     cv2.rectangle(img, (bbox[0] - 20, bbox[1] - 20),
                                   (bbox[0] + bbox[2] + 20, bbox[1] + bbox[3] + 20),
-                                  (255, 0, 255), 2)  #红蓝为 紫色
+                                  (255, 0, 255), 2)  # 红蓝为 紫色
                     cv2.putText(img, myHand["type"], (bbox[0] - 30, bbox[1] - 30), cv2.FONT_HERSHEY_PLAIN,
                                 2, (255, 0, 255), 2)
         if draw:
@@ -187,48 +187,52 @@ class HandDetector:
         length = math.hypot(x2 - x1, y2 - y1)
         info = (x1, y1, x2, y2, cx, cy)
         if img is not None:
-            cv2.circle(img, (x1, y1), 15, (255, 0, 255), cv2.FILLED)   # 食指尖画紫圈
-            cv2.circle(img, (x2, y2), 15, (255, 0, 255), cv2.FILLED)   # 中指尖画紫圈
+            cv2.circle(img, (x1, y1), 15, (255, 0, 255), cv2.FILLED)  # 食指尖画紫圈
+            cv2.circle(img, (x2, y2), 15, (255, 0, 255), cv2.FILLED)  # 中指尖画紫圈
             cv2.line(img, (x1, y1), (x2, y2), (255, 0, 255), 3)
-            cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)   # 两指中间画紫圈
+            cv2.circle(img, (cx, cy), 15, (255, 0, 255), cv2.FILLED)  # 两指中间画紫圈
             return length, info, img
         else:
             return length, info
 
 
 def main():
-    cap = cv2.VideoCapture(0)
+    import time
+    cap = cv2.VideoCapture(3, cv2.CAP_DSHOW)
+    # cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))  # 设置编码格式
+    cap.set(cv2.CAP_PROP_FPS, 1)
+    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+
     detector = HandDetector(detectionCon=0.8, maxHands=2)
+    prevTime = 0
+    count = 0
+    total_time = 0
     while True:
         # Get image frame
+        catch_time = time.time()
+
         success, img = cap.read()
-        # Find the hand and its landmarks
-        hands, img = detector.findHands(img)  # with draw
-        # hands = detector.findHands(img, draw=False)  # without draw
 
-        if hands:
-            # Hand 1
-            hand1 = hands[0]
-            lmList1 = hand1["lmList"]  # List of 21 Landmark points
-            bbox1 = hand1["bbox"]  # Bounding box info x,y,w,h
-            centerPoint1 = hand1['center']  # center of the hand cx,cy
-            handType1 = hand1["type"]  # Handtype Left or Right
+        count += 1
 
-            fingers1 = detector.fingersUp(hand1)
+        end_time = time.time()
+        cost_time = end_time - catch_time
+        total_time += cost_time
+        avg_cost_time = total_time / count
+        # print ms cost time
+        if count % 10 == 0:
+            count = 0
+            total_time = 0
+            print(f"Cost time: {cost_time * 1000 :.2f} ms, avg cost time: {avg_cost_time * 1000 :.2f} ms")
 
-            if len(hands) == 2:
-                # Hand 2
-                hand2 = hands[1]
-                lmList2 = hand2["lmList"]  # List of 21 Landmark points
-                bbox2 = hand2["bbox"]  # Bounding box info x,y,w,h
-                centerPoint2 = hand2['center']  # center of the hand cx,cy
-                handType2 = hand2["type"]  # Hand Type "Left" or "Right"
-
-                fingers2 = detector.fingersUp(hand2)
-
-                # Find Distance between two Landmarks. Could be same hand or different hands
-                length, info, img = detector.findDistance(lmList1[8][0:2], lmList2[8][0:2], img)  # with draw
-                # length, info = detector.findDistance(lmList1[8], lmList2[8])  # with draw
+        import time
+        fps = int(1 / (time.time() - prevTime))
+        prevTime = time.time()
+        if fps < 10:
+            print(fps)
+        cv2.putText(img, str(int(fps)), (10, 70), cv2.FONT_HERSHEY_PLAIN, 3,
+                    (255, 0, 255), 3)
         # Display
         cv2.imshow("Image", img)
         cv2.waitKey(1)
